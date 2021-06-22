@@ -1,6 +1,9 @@
 ﻿#include "svghandler.h"
 
+#include "types.h"
 #include "log.h"
+#include "simpletextitem.h"
+#include "groupitem.h"
 
 #include <QGraphicsItem>
 #include <QGraphicsTextItem>
@@ -9,9 +12,12 @@
 #include <QStack>
 #include <QtMath>
 #include <QFontMetrics>
+#include <QSet>
 
-#define logSvgI() nCInfo("svg")
+#define logSvgW() nCInfo("svg")
 #define logSvgD() nCDebug("svg")
+
+namespace svgscene {
 
 //see: https://www.w3.org/TR/SVG11/
 
@@ -900,8 +906,13 @@ SvgHandler::SvgHandler(QGraphicsScene *scene)
 {
 }
 
-void SvgHandler::load(QXmlStreamReader *data)
+SvgHandler::~SvgHandler()
 {
+}
+
+void SvgHandler::load(QXmlStreamReader *data, bool skip_definitions)
+{
+	m_skipDefinitions = skip_definitions;
 	m_xml = data;
 	m_defaultPen = QPen(Qt::black, 1, Qt::SolidLine, Qt::FlatCap, Qt::SvgMiterJoin);
 	m_defaultPen.setMiterLimit(4);
@@ -918,38 +929,48 @@ void SvgHandler::parse()
 {
 	m_xml->setNamespaceProcessing(false);
 	bool done = false;
+
 	while (!m_xml->atEnd() && !done) {
 		switch (m_xml->readNext()) {
 		case QXmlStreamReader::StartElement:
 		{
-			logSvgD() << "start element:" << m_xml->name();
 			SvgElement el(m_xml->name().toString());
+			if(el.name == QLatin1String("defs")) {
+				if (m_skipDefinitions) {
+					m_xml->skipCurrentElement();
+					continue;
+				}
+			}
 			el.xmlAttributes = parseXmlAttributes(m_xml->attributes());
+			logSvgD() << QString(m_elementStack.count(), '-') << ">" << "+ start element:" << el.name << "id:" << el.xmlAttributes.value("id");
 			if(!m_elementStack.isEmpty())
 				el.styleAttributes = m_elementStack.last().styleAttributes;
 			mergeCSSAttributes(el.styleAttributes, QStringLiteral("style"), el.xmlAttributes);
 			m_elementStack.push(el);
-			if (startElement()) {
-				m_elementStack.last().itemCreated = true;
-			}
+			bool is_item_created = startElement();
+			m_elementStack.last().itemCreated = is_item_created;
 			break;
 		}
 		case QXmlStreamReader::EndElement:
 		{
 			SvgElement svg_element = m_elementStack.pop();
-			logSvgD() << "end element:" << m_xml->name() << "item created:" << svg_element.itemCreated;
-			if(svg_element.itemCreated && m_topLevelItem)
+			logSvgD() << QString(m_elementStack.count(), '-') << ">" << "- end element:" << m_xml->name() << "item created:" << svg_element.itemCreated;
+			if(svg_element.itemCreated && m_topLevelItem) {
+				//logSvgI() << "m_topLevelItem:" << m_topLevelItem << typeid (*m_topLevelItem).name() << svg_element.name;
+				installVisuController(m_topLevelItem, svg_element);
 				m_topLevelItem = m_topLevelItem->parentItem();
+			}
 			break;
 		}
 		case QXmlStreamReader::Characters:
 		{
-			logSvgD() << "characters element:" << m_xml->text();
-			if(QGraphicsSimpleTextItem *text_item = dynamic_cast<QGraphicsSimpleTextItem*>(m_topLevelItem)) {
-				//QString text = text_item->text();
-				//if(!text.isEmpty())
-				//	text += '\n';
-				text_item->setText(m_xml->text().toString());
+			logSvgD() << "characters element:" << m_xml->text();// << typeid (*m_topLevelItem).name();
+			if(SimpleTextItem *text_item = dynamic_cast<SimpleTextItem*>(m_topLevelItem)) {
+				QString text = text_item->text();
+				if(!text.isEmpty())
+					text += '\n';
+				logSvgD() << text_item->text() << "+" << m_xml->text().toString();
+				text_item->setText(text + m_xml->text().toString());
 			}
 			else if(QGraphicsTextItem *text_item = dynamic_cast<QGraphicsTextItem*>(m_topLevelItem)) {
 				QString text = text_item->toPlainText();
@@ -959,6 +980,7 @@ void SvgHandler::parse()
 				//nInfo() << text_item->toPlainText();
 			}
 			else {
+				logSvgD() << "characters are not part of text item, will be ignored";
 				//nWarning() << "top:" << m_topLevelItem << (m_topLevelItem? typeid (*m_topLevelItem).name(): "NULL");
 			}
 			break;
@@ -985,15 +1007,21 @@ bool SvgHandler::startElement()
 		else {
 			nWarning() << "unsupported root element:" << el.name;
 		}
+		return false;
 	}
 	else {
 		if (el.name == QLatin1String("g")) {
-			auto *g = new QGraphicsRectItem();
-			setStyle(g, el.xmlAttributes);
-			setTransform(g, el.xmlAttributes.value(QStringLiteral("transform")));
-			addItem(g);
-			//g->setRotation(45);
-			return true;
+			QGraphicsItem *item = createGroupItem(el);
+			if(item) {
+				setXmlAttributes(item, el);
+				if(auto *rect_item = dynamic_cast<QGraphicsRectItem*>(item)) {
+					setStyle(rect_item, el.xmlAttributes);
+				}
+				setTransform(item, el.xmlAttributes.value(QStringLiteral("transform")));
+				addItem(item);
+				return true;
+			}
+			return false;
 		}
 		else if (el.name == QLatin1String("rect")) {
 			qreal x = el.xmlAttributes.value(QStringLiteral("x")).toDouble();
@@ -1009,6 +1037,7 @@ bool SvgHandler::startElement()
 			}
 			else {
 				QGraphicsRectItem *item = new QGraphicsRectItem();
+				setXmlAttributes(item, el);
 				item->setRect(QRectF(x, y, w, h));
 				setStyle(item, el.styleAttributes);
 				setTransform(item, el.xmlAttributes.value(QStringLiteral("transform")));
@@ -1017,12 +1046,13 @@ bool SvgHandler::startElement()
 			}
 		}
 		else if (el.name == QLatin1String("circle")) {
+			QGraphicsEllipseItem *item = new QGraphicsEllipseItem();
+			setXmlAttributes(item, el);
 			qreal cx = toDouble(el.xmlAttributes.value(QStringLiteral("cx")));
 			qreal cy = toDouble(el.xmlAttributes.value(QStringLiteral("cy")));
 			qreal rx = toDouble(el.xmlAttributes.value(QStringLiteral("r")));
 			QRectF r(0, 0, 2*rx, 2*rx);
 			r.translate(cx - rx, cy - rx);
-			QGraphicsEllipseItem *item = new QGraphicsEllipseItem();
 			item->setRect(r);
 			setStyle(item, el.styleAttributes);
 			setTransform(item, el.xmlAttributes.value(QStringLiteral("transform")));
@@ -1030,13 +1060,14 @@ bool SvgHandler::startElement()
 			return true;
 		}
 		else if (el.name == QLatin1String("ellipse")) {
+			QGraphicsEllipseItem *item = new QGraphicsEllipseItem();
+			setXmlAttributes(item, el);
 			qreal cx = toDouble(el.xmlAttributes.value(QStringLiteral("cx")));
 			qreal cy = toDouble(el.xmlAttributes.value(QStringLiteral("cy")));
 			qreal rx = toDouble(el.xmlAttributes.value(QStringLiteral("rx")));
 			qreal ry = toDouble(el.xmlAttributes.value(QStringLiteral("ry")));
 			QRectF r(0, 0, 2*rx, 2*ry);
 			r.translate(cx - rx, cy - ry);
-			QGraphicsEllipseItem *item = new QGraphicsEllipseItem();
 			item->setRect(r);
 			setStyle(item, el.styleAttributes);
 			setTransform(item, el.xmlAttributes.value(QStringLiteral("transform")));
@@ -1045,6 +1076,7 @@ bool SvgHandler::startElement()
 		}
 		else if (el.name == QLatin1String("path")) {
 			QGraphicsPathItem *item = new QGraphicsPathItem();
+			setXmlAttributes(item, el);
 			QString data = el.xmlAttributes.value(QStringLiteral("d"));
 			QPainterPath p;
 			parsePathDataFast(QStringRef(&data), p);
@@ -1060,9 +1092,10 @@ bool SvgHandler::startElement()
 			return true;
 		}
 		else if (el.name == QLatin1String("text")) {
+			QGraphicsRectItem *item = new QGraphicsRectItem();
+			setXmlAttributes(item, el);
 			//qreal x = attributes.value(QLatin1String("x")).toDouble();
 			//qreal y = attributes.value(QLatin1String("y")).toDouble();
-			QGraphicsRectItem *item = new QGraphicsRectItem();
 			//text->setPos(x, y);
 			setStyle(item, el.styleAttributes);
 			setTransform(item, el.xmlAttributes.value(QStringLiteral("transform")));
@@ -1070,9 +1103,10 @@ bool SvgHandler::startElement()
 			return true;
 		}
 		else if (el.name == QLatin1String("tspan")) {
+			SimpleTextItem *item = new SimpleTextItem(el.styleAttributes);
+			setXmlAttributes(item, el);
 			qreal x = toDouble(el.xmlAttributes.value(QStringLiteral("x")));
 			qreal y = toDouble(el.xmlAttributes.value(QStringLiteral("y")));
-			QGraphicsSimpleTextItem *item = new QGraphicsSimpleTextItem();
 			//text->setPos(x, y);
 			setStyle(item, el.styleAttributes);
 			setTextStyle(item, el.styleAttributes);
@@ -1086,6 +1120,7 @@ bool SvgHandler::startElement()
 		}
 		else if (el.name == QLatin1String("flowRoot")) {
 			QGraphicsTextItem *item = new QGraphicsTextItem();
+			setXmlAttributes(item, el);
 			//nWarning() << "FlowRoot:" << (QGraphicsItem*)item;
 			setTextStyle(item, el.styleAttributes);
 			setTransform(item, el.xmlAttributes.value(QStringLiteral("transform")));
@@ -1093,10 +1128,57 @@ bool SvgHandler::startElement()
 			return true;
 		}
 		else {
-			nWarning() << "unsupported element:" << el.name;
+			logSvgW() << "unsupported element:" << el.name;
 		}
+		return false;
 	}
-	return false;
+}
+
+QGraphicsItem *SvgHandler::createGroupItem(const SvgHandler::SvgElement &el)
+{
+	Q_UNUSED(el)
+	QGraphicsItem *item = new GroupItem();
+	return item;
+}
+
+void SvgHandler::installVisuController(QGraphicsItem *it, const SvgHandler::SvgElement &el)
+{
+	Q_UNUSED(it)
+	Q_UNUSED(el)
+}
+
+void SvgHandler::setXmlAttributes(QGraphicsItem *git, const SvgHandler::SvgElement &el)
+{
+	XmlAttributes attrs;
+	QMapIterator<QString, QString> it(el.xmlAttributes);
+	while (it.hasNext()) {
+		it.next();
+		const QString k = it.key();
+		if(k == Types::ATTR_SHV_PATH) {
+			git->setData(Types::DataKey::ShvPath, it.value());
+			attrs[k] = it.value();
+		}
+		else if(k == Types::ATTR_SHV_TYPE) {
+			git->setData(Types::DataKey::ShvType, it.value());
+			attrs[k] = it.value();
+		}
+		else if(k == Types::ATTR_SHV_VISU_TYPE) {
+			git->setData(Types::DataKey::ShvVisuType, it.value());
+			attrs[k] = it.value();
+		}
+		else if(k == Types::ATTR_ID) {
+			git->setData(Types::DataKey::Id, it.value());
+			attrs[k] = it.value();
+		}
+		else if(k == Types::ATTR_CHILD_ID) {
+			git->setData(Types::DataKey::ChildId, it.value());
+			attrs[k] = it.value();
+		}
+		if(it.key().startsWith(QStringLiteral("shv")))
+			attrs[it.key()] = it.value();
+	}
+	git->setData(Types::DataKey::XmlAttributes, QVariant::fromValue(attrs));
+	git->setData(Types::DataKey::CssAttributes, QVariant::fromValue(el.styleAttributes));
 }
 
 void SvgHandler::setTransform(QGraphicsItem *it, const QString &str_val)
@@ -1105,12 +1187,13 @@ void SvgHandler::setTransform(QGraphicsItem *it, const QString &str_val)
 	QMatrix mx = parseTransformationMatrix(transform.trimmed());
 	if(!mx.isIdentity()) {
 		QTransform t(mx);
-		logSvgI() << typeid (*it).name() << "setting matrix:" << t.dx() << t.dy();
+		//logSvgI() << typeid (*it).name() << "setting matrix:" << t.dx() << t.dy();
 		it->setTransform(t);
 	}
 }
 
-SvgHandler::XmlAttributes SvgHandler::parseXmlAttributes(const QXmlStreamAttributes &attributes)
+XmlAttributes
+SvgHandler::parseXmlAttributes(const QXmlStreamAttributes &attributes)
 {
 	XmlAttributes ret;
 	for (int i = 0; i < attributes.count(); ++i) {
@@ -1122,7 +1205,11 @@ SvgHandler::XmlAttributes SvgHandler::parseXmlAttributes(const QXmlStreamAttribu
 
 void SvgHandler::mergeCSSAttributes(CssAttributes &css_attributes, const QString &attr_name, const XmlAttributes &xml_attributes)
 {
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
 	QStringList css = xml_attributes.value(attr_name).split(';', QString::SkipEmptyParts);
+#else
+	QStringList css = xml_attributes.value(attr_name).split(';', Qt::SkipEmptyParts);
+#endif
 	for(QString ss : css) {
 		int ix = ss.indexOf(':');
 		if(ix > 0) {
@@ -1134,7 +1221,10 @@ void SvgHandler::mergeCSSAttributes(CssAttributes &css_attributes, const QString
 void SvgHandler::setStyle(QAbstractGraphicsShapeItem *it, const CssAttributes &attributes)
 {
 	QString fill = attributes.value(QStringLiteral("fill"));
-	if(fill.isEmpty() || fill == QLatin1String("none")) {
+	if(fill.isEmpty()) {
+		// default fill
+	}
+	else if(fill == QLatin1String("none")) {
 		it->setBrush(Qt::NoBrush);
 	}
 	else {
@@ -1150,27 +1240,60 @@ void SvgHandler::setStyle(QAbstractGraphicsShapeItem *it, const CssAttributes &a
 		QPen pen(parseColor(stroke, opacity));
 		pen.setWidthF(toDouble(attributes.value(QStringLiteral("stroke-width"))));
 		QString linecap = attributes.value(QStringLiteral("stroke-linecap"));
-		if(linecap == QLatin1String("butt"))
-			pen.setCapStyle(Qt::FlatCap);
-		else if(linecap == QLatin1String("round"))
+		if(linecap == QLatin1String("round"))
 			pen.setCapStyle(Qt::RoundCap);
 		else if(linecap == QLatin1String("square"))
 			pen.setCapStyle(Qt::SquareCap);
-		QString join = attributes.value(QStringLiteral("stroke-join"));
+		else //if(linecap == QLatin1String("butt"))
+			pen.setCapStyle(Qt::FlatCap);
+		QString join = attributes.value(QStringLiteral("stroke-linejoin"));
 		if(join == QLatin1String("round"))
 			pen.setJoinStyle(Qt::RoundJoin);
-		else if(join == QLatin1String("miter"))
-			pen.setJoinStyle(Qt::MiterJoin);
 		else if(join == QLatin1String("bevel"))
 			pen.setJoinStyle(Qt::BevelJoin);
+		else //if( join == QLatin1String("miter"))
+			pen.setJoinStyle(Qt::MiterJoin);
+		QString dash_pattern = attributes.value(QStringLiteral("stroke-dasharray"));
+		if(!(dash_pattern.isEmpty() || dash_pattern == QLatin1String("none"))) {
+			QStringList array = dash_pattern.split(',');
+			QVector<qreal> arr;
+			for(const auto &s : array) {
+				bool ok;
+				double d = s.toDouble(&ok);
+				if(!ok) {
+					logSvgW() << "Invalid stroke dash definition:" << dash_pattern.toStdString();
+					arr.clear();
+					break;
+				}
+				arr << d;
+			}
+			if(!arr.isEmpty()) {
+				pen.setDashPattern(arr);
+			}
+		}
+		QString dash_offset = attributes.value(QStringLiteral("stroke-dashoffset"));
+		if(!(dash_offset.isEmpty() || dash_offset == QLatin1String("none"))) {
+			bool ok;
+			double d = dash_offset.toDouble(&ok);
+			if(ok) {
+				pen.setDashOffset(d);
+			}
+			else {
+				logSvgW() << "Invalid stroke dash offset:" << dash_offset.toStdString();
+			}
+		}
 		it->setPen(pen);
 	}
 }
 
-void SvgHandler::setTextStyle(QFont &font, const SvgHandler::CssAttributes &attributes)
+void SvgHandler::setTextStyle(QFont &font, const CssAttributes &attributes)
 {
+	logSvgD() << "orig font" << font.toString();
+	//font.setStyleName(QString());
+	font.setStyleName(QStringLiteral("Normal"));
 	QString font_size = attributes.value(QStringLiteral("font-size"));
 	if(!font_size.isEmpty()) {
+		logSvgD() << "font_size:" << font_size;
 		if(font_size.endsWith(QLatin1String("px")))
 			font.setPixelSize((int)toDouble(font_size.mid(0, font_size.size() - 2)));
 		else if(font_size.endsWith(QLatin1String("pt")))
@@ -1178,10 +1301,13 @@ void SvgHandler::setTextStyle(QFont &font, const SvgHandler::CssAttributes &attr
 	}
 	QString font_family = attributes.value(QStringLiteral("font-family"));
 	if(!font_family.isEmpty()) {
+		logSvgD() << "font_family:" << font_family;
 		font.setFamily(font_family);
 	}
+	font.setWeight(QFont::Normal);
 	QString font_weight = attributes.value(QStringLiteral("font-weight"));
 	if(!font_weight.isEmpty()) {
+		logSvgD() << "font_weight:" << font_weight;
 		if(font_weight == QLatin1String("thin"))
 			font.setWeight(QFont::Thin);
 		else if(font_weight == QLatin1String("light"))
@@ -1195,6 +1321,30 @@ void SvgHandler::setTextStyle(QFont &font, const SvgHandler::CssAttributes &attr
 		else if(font_weight == QLatin1String("black"))
 			font.setWeight(QFont::Black);
 	}
+	font.setStretch(QFont::Unstretched);
+	QString font_stretch = attributes.value(QStringLiteral("font-stretch"));
+	if(!font_stretch.isEmpty()) {
+		logSvgD() << "font_stretch:" << font_stretch;
+		if(font_stretch == QLatin1String("ultra-condensed"))
+			font.setStretch(QFont::UltraCondensed);
+		else if(font_stretch == QLatin1String("extra-condensed"))
+			font.setStretch(QFont::ExtraCondensed);
+		else if(font_stretch == QLatin1String("condensed"))
+			font.setStretch(QFont::Condensed);
+		else if(font_stretch == QLatin1String("semi-condensed"))
+			font.setStretch(QFont::SemiCondensed);
+		else if(font_stretch == QLatin1String("semi-expanded"))
+			font.setStretch(QFont::SemiExpanded);
+		else if(font_stretch == QLatin1String("expanded"))
+			font.setStretch(QFont::Expanded);
+		else if(font_stretch == QLatin1String("extra-expanded"))
+			font.setStretch(QFont::ExtraExpanded);
+		else if(font_stretch == QLatin1String("ultra-expanded"))
+			font.setStretch(QFont::UltraExpanded);
+		else // if(font_stretch == QLatin1String("normal"))
+			font.setStretch(QFont::Unstretched);
+	}
+	font.setStyle(QFont::StyleNormal);
 	QString font_style = attributes.value(QStringLiteral("font-style"));
 	if(!font_style.isEmpty()) {
 		if(font_style == QLatin1String("normal"))
@@ -1204,6 +1354,12 @@ void SvgHandler::setTextStyle(QFont &font, const SvgHandler::CssAttributes &attr
 		else if(font_style == QLatin1String("oblique"))
 			font.setStyle(QFont::StyleOblique);
 	}
+	logSvgD() << "font"
+			  << "px size:" << font.pixelSize()
+			  << "pt size:" << font.pointSize()
+			  << "stretch:" << font.stretch()
+			  << "weight:" << font.weight();
+	logSvgD() << "new font" << font.toString();
 }
 
 void SvgHandler::setTextStyle(QGraphicsSimpleTextItem *text, const CssAttributes &attributes)
@@ -1213,7 +1369,7 @@ void SvgHandler::setTextStyle(QGraphicsSimpleTextItem *text, const CssAttributes
 	text->setFont(f);
 }
 
-void SvgHandler::setTextStyle(QGraphicsTextItem *text, const SvgHandler::CssAttributes &attributes)
+void SvgHandler::setTextStyle(QGraphicsTextItem *text, const CssAttributes &attributes)
 {
 	QFont f = text->font();
 	setTextStyle(f, attributes);
@@ -1230,11 +1386,25 @@ void SvgHandler::setTextStyle(QGraphicsTextItem *text, const SvgHandler::CssAttr
 	}
 }
 
+QString SvgHandler::point2str(QPointF r)
+{
+	auto ret = QStringLiteral("Point(%1, %2)");
+	return ret.arg(r.x()).arg(r.y());
+}
+
+QString SvgHandler::rect2str(QRectF r)
+{
+	auto ret = QStringLiteral("Rect(%1, %2 %3 x %4)");
+	return ret.arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height());
+}
+
 void SvgHandler::addItem(QGraphicsItem *it)
 {
 	if(!m_topLevelItem)
 		return;
-	logSvgI() << "adding element:" << it << typeid (*it).name();
+	logSvgD() << "adding item:" << typeid (*it).name()
+			  << "pos:" << point2str(it->pos())
+			  << "bounding rect:" << rect2str(it->boundingRect());
 	if(QGraphicsItemGroup *grp = dynamic_cast<QGraphicsItemGroup*>(m_topLevelItem)) {
 		grp->addToGroup(it);
 	}
@@ -1242,4 +1412,6 @@ void SvgHandler::addItem(QGraphicsItem *it)
 		it->setParentItem(m_topLevelItem);
 	}
 	m_topLevelItem = it;
+}
+
 }

@@ -7,6 +7,8 @@
 #include <QTimer>
 #include <QXmlStreamReader>
 
+using namespace svgscene;
+
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)

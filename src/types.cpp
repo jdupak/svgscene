@@ -8,4 +8,4 @@ const QString Types::ATTR_SHV_PATH = QStringLiteral("shvPath");
 const QString Types::ATTR_SHV_TYPE = QStringLiteral("shvType");
 const QString Types::ATTR_SHV_VISU_TYPE = QStringLiteral("shvVisuType");
 
-}
+} // namespace svgscene

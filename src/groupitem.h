@@ -11,10 +11,7 @@ class GroupItem : public QGraphicsRectItem {
 public:
     explicit GroupItem(QGraphicsItem *parent = nullptr);
 
-    void paint(
-        QPainter *painter,
-        const QStyleOptionGraphicsItem *option,
-        QWidget *widget) override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 };
 
 } // namespace svgscene

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "svgdocument.h"
 #include "types.h"
 
 #include <QMap>
@@ -16,9 +17,6 @@ class QGraphicsTextItem;
 class QAbstractGraphicsShapeItem;
 
 namespace svgscene {
-
-using XmlAttributes = Types::XmlAttributes;
-using CssAttributes = Types::CssAttributes;
 
 class SvgHandler {
 public:
@@ -45,6 +43,8 @@ public:
     static QString point2str(QPointF r);
     static QString rect2str(QRectF r);
 
+    SvgDocument getDocument() const;
+
 protected:
     virtual QGraphicsItem *createGroupItem(const SvgElement &el);
     virtual void installVisuController(QGraphicsItem *it, const SvgElement &el);
@@ -54,26 +54,30 @@ protected:
 
 private:
     void parse();
-    static CssAttributes
-    parseXmlAttributes(const QXmlStreamAttributes &attributes, CssAttributes &css);
+    static CssAttributes parseXmlAttributes(
+        const QXmlStreamAttributes &attributes,
+        CssAttributes &css);
     static void mergeCSSAttributes(
         CssAttributes &css_attributes,
         const QString &attr_name,
         const XmlAttributes &xml_attributes);
 
     static void setTransform(QGraphicsItem *it, const QString &str_val);
-    static void setStyle(QAbstractGraphicsShapeItem *it, const CssAttributes &attributes);
+    static void
+    setStyle(QAbstractGraphicsShapeItem *it, const CssAttributes &attributes);
     static void setTextStyle(QFont &font, const CssAttributes &attributes);
-    static void setTextStyle(QGraphicsSimpleTextItem *text, const CssAttributes &attributes);
-    static void setTextStyle(QGraphicsTextItem *text, const CssAttributes &attributes);
+    static void setTextStyle(
+        QGraphicsSimpleTextItem *text,
+        const CssAttributes &attributes);
+    static void
+    setTextStyle(QGraphicsTextItem *text, const CssAttributes &attributes);
 
     bool startElement();
     void addItem(QGraphicsItem *it);
 
 private:
+    QGraphicsItem *root = nullptr;
     QStack<SvgElement> m_elementStack;
-
-    // QGraphicsItemGroup *m_topLevelGroup = nullptr;
     QGraphicsItem *m_topLevelItem = nullptr;
     QXmlStreamReader *m_xml = nullptr;
     QPen m_defaultPen;

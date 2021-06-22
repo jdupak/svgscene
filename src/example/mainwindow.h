@@ -1,7 +1,9 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
+
+#include "svgscene/components/simpletextitem.h"
 
 #include <QMainWindow>
+#include <QTimer>
 
 class QGraphicsScene;
 
@@ -21,10 +23,12 @@ public:
 private:
     Q_SLOT void on_action_Open_triggered();
     Q_SLOT void on_actionZoom_to_fit_triggered();
+    Q_SLOT void inc();
 
 private:
     Ui::MainWindow *ui;
     QGraphicsScene *m_scene;
+    QTimer test;
+    svgscene::SimpleTextItem *label;
+    int counter = 0;
 };
-
-#endif // MAINWINDOW_H

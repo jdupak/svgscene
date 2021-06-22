@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 
-#include "svghandler.h"
+#include "svgscene/components/simpletextitem.h"
+#include "svgscene/graphicsview/svggraphicsview.h"
+#include "svgscene/svgdocument.h"
+#include "svgscene/svghandler.h"
 #include "ui_mainwindow.h"
 
 #include <QFileDialog>
@@ -10,7 +13,9 @@
 
 using namespace svgscene;
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow) {
     ui->setupUi(this);
 
     m_scene = new QGraphicsScene(this);
@@ -33,8 +38,6 @@ void MainWindow::openFile(const QString &fn) {
         m_scene->clear();
         QXmlStreamReader rd(&f);
         SvgHandler h(m_scene);
-        h.load(&rd);
-        QTimer::singleShot(0, ui->graphicsView, &SvgGraphicsView::zoomToFit);
     }
 }
 
@@ -45,3 +48,4 @@ void MainWindow::on_action_Open_triggered() {
 void MainWindow::on_actionZoom_to_fit_triggered() {
     ui->graphicsView->zoomToFit();
 }
+void MainWindow::inc() {}

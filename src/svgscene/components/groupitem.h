@@ -1,5 +1,4 @@
-#ifndef SHV_VISU_SVGSCENE_GROUPITEM_H
-#define SHV_VISU_SVGSCENE_GROUPITEM_H
+#pragma once
 
 #include <QGraphicsItem>
 
@@ -15,5 +14,3 @@ public:
 };
 
 } // namespace svgscene
-
-#endif // SHV_VISU_SVGSCENE_GROUPITEM_H

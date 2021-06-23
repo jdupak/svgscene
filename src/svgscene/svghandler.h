@@ -7,11 +7,11 @@
 #include "svgdocument.h"
 #include "svgmetadata.h"
 
+#include <QFile>
 #include <QMap>
 #include <QPen>
 #include <QStack>
 #include <utility>
-#include <QFile>
 
 class QXmlStreamReader;
 class QXmlStreamAttributes;
@@ -39,7 +39,7 @@ SvgDocument parseFromFileName(QGraphicsScene *scene, const QString &filename);
  * @param filename  path to a SVG file
  * @return          an svg document, see `svgdocument.h`
  */
-SvgDocument parseFromFile(QGraphicsScene *scene, QFile* file);
+SvgDocument parseFromFile(QGraphicsScene *scene, QFile *file);
 
 // TODO: make the handler private, i.e. not exposed a in header file.
 //      The above entrypoint makes it uninteresting for library users.
@@ -74,29 +74,24 @@ protected:
     virtual QGraphicsItem *createGroupItem(const SvgElement &el);
     QGraphicsItem *createHyperlinkItem(const SvgElement &el);
     virtual void installVisuController(QGraphicsItem *it, const SvgElement &el);
-    virtual void setXmlAttributes(QGraphicsItem *git, const SvgElement &el);
+    virtual void setElementMetadata(QGraphicsItem *item, const SvgElement &svg_element);
 
     QGraphicsScene *m_scene;
 
 private:
     void parse();
-    static CssAttributes parseXmlAttributes(
-        const QXmlStreamAttributes &attributes,
-        CssAttributes &css);
+    static CssAttributes
+    parseXmlAttributes(const QXmlStreamAttributes &attributes, CssAttributes &css);
     static void mergeCSSAttributes(
         CssAttributes &css_attributes,
         const QString &attr_name,
         const XmlAttributes &xml_attributes);
 
     static void setTransform(QGraphicsItem *it, const QString &str_val);
-    static void
-    setStyle(QAbstractGraphicsShapeItem *it, const CssAttributes &attributes);
+    static void setStyle(QAbstractGraphicsShapeItem *it, const CssAttributes &attributes);
     static void setTextStyle(QFont &font, const CssAttributes &attributes);
-    static void setTextStyle(
-        QGraphicsSimpleTextItem *text,
-        const CssAttributes &attributes);
-    static void
-    setTextStyle(QGraphicsTextItem *text, const CssAttributes &attributes);
+    static void setTextStyle(QGraphicsSimpleTextItem *text, const CssAttributes &attributes);
+    static void setTextStyle(QGraphicsTextItem *text, const CssAttributes &attributes);
 
     bool startElement();
     void addItem(QGraphicsItem *it);
@@ -108,6 +103,15 @@ private:
     QXmlStreamReader *m_xml = nullptr;
     QPen m_defaultPen;
     bool m_skipDefinitions = false;
+
+protected:
+    /**
+     * Allows subclasses of the handler to save more data to each graphics item.
+     *
+     * @param item          qt dom item
+     * @param svg_element   svg processed element
+     */
+    virtual void setCustomElementMetadata(QGraphicsItem *item, const SvgElement &svg_element);
 };
 
 } // namespace svgscene

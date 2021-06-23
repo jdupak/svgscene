@@ -1,78 +1,80 @@
-
-#ifndef SVGSCENE_SVG_SPEC_H
-#define SVGSCENE_SVG_SPEC_H
+/**
+ * Data from the SVG specification.
+ *
+ * @file
+ */
+#pragma once
 
 #include <QSet>
 
-namespace svgspec {
+namespace svgscene { namespace svgspec {
 
-/**
- * https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute
- */
-static const QSet<QString> presentation_attributes {
-    "alignment-baseline",
-    "baseline-shift",
-    "clip",
-    "clip-path",
-    "clip-rule",
-    "color",
-    "color-interpolation",
-    "color-interpolation-filters",
-    "color-profile",
-    "color-rendering",
-    "cursor",
-    "direction",
-    "display",
-    "dominant-baseline",
-    "enable-background",
-    "fill",
-    "fill-opacity",
-    "fill-rule",
-    "filter",
-    "flood-color",
-    "flood-opacity",
-    "font-family",
-    "font-size",
-    "font-size-adjust",
-    "font-stretch",
-    "font-style",
-    "font-variant",
-    "font-weight",
-    "glyph-orientation-horizontal",
-    "glyph-orientation-vertical",
-    "image-rendering",
-    "kerning",
-    "letter-spacing",
-    "lighting-color",
-    "marker-end",
-    "marker-mid",
-    "marker-start",
-    "mask",
-    "opacity",
-    "overflow",
-    "pointer-events",
-    "shape-rendering",
-    "stop-color",
-    "stop-opacity",
-    "stroke",
-    "stroke-dasharray",
-    "stroke-dashoffset",
-    "stroke-linecap",
-    "stroke-linejoin",
-    "stroke-miterlimit",
-    "stroke-opacity",
-    "stroke-width",
-    "text-anchor",
-    "text-decoration",
-    "text-rendering",
-    "transform",
-    "transform-origin",
-    "unicode-bidi",
-    "vector-effect",
-    "visibility",
-    "word-spacing",
-    "writing-mode",
-};
-} // namespace svgspec
-
-#endif // SVGSCENE_SVG_SPEC_H
+    /**
+     * https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute
+     */
+    static const QSet<QString> presentation_attributes {
+        // NOLINT(cert-err58-cpp)
+        QStringLiteral("alignment-baseline"),
+        QStringLiteral("baseline-shift"),
+        QStringLiteral("clip"),
+        QStringLiteral("clip-path"),
+        QStringLiteral("clip-rule"),
+        QStringLiteral("color"),
+        QStringLiteral("color-interpolation"),
+        QStringLiteral("color-interpolation-filters"),
+        QStringLiteral("color-profile"),
+        QStringLiteral("color-rendering"),
+        QStringLiteral("cursor"),
+        QStringLiteral("direction"),
+        QStringLiteral("display"),
+        QStringLiteral("dominant-baseline"),
+        QStringLiteral("enable-background"),
+        QStringLiteral("fill"),
+        QStringLiteral("fill-opacity"),
+        QStringLiteral("fill-rule"),
+        QStringLiteral("filter"),
+        QStringLiteral("flood-color"),
+        QStringLiteral("flood-opacity"),
+        QStringLiteral("font-family"),
+        QStringLiteral("font-size"),
+        QStringLiteral("font-size-adjust"),
+        QStringLiteral("font-stretch"),
+        QStringLiteral("font-style"),
+        QStringLiteral("font-variant"),
+        QStringLiteral("font-weight"),
+        QStringLiteral("glyph-orientation-horizontal"),
+        QStringLiteral("glyph-orientation-vertical"),
+        QStringLiteral("image-rendering"),
+        QStringLiteral("kerning"),
+        QStringLiteral("letter-spacing"),
+        QStringLiteral("lighting-color"),
+        QStringLiteral("marker-end"),
+        QStringLiteral("marker-mid"),
+        QStringLiteral("marker-start"),
+        QStringLiteral("mask"),
+        QStringLiteral("opacity"),
+        QStringLiteral("overflow"),
+        QStringLiteral("pointer-events"),
+        QStringLiteral("shape-rendering"),
+        QStringLiteral("stop-color"),
+        QStringLiteral("stop-opacity"),
+        QStringLiteral("stroke"),
+        QStringLiteral("stroke-dasharray"),
+        QStringLiteral("stroke-dashoffset"),
+        QStringLiteral("stroke-linecap"),
+        QStringLiteral("stroke-linejoin"),
+        QStringLiteral("stroke-miterlimit"),
+        QStringLiteral("stroke-opacity"),
+        QStringLiteral("stroke-width"),
+        QStringLiteral("text-anchor"),
+        QStringLiteral("text-decoration"),
+        QStringLiteral("text-rendering"),
+        QStringLiteral("transform"),
+        QStringLiteral("transform-origin"),
+        QStringLiteral("unicode-bidi"),
+        QStringLiteral("vector-effect"),
+        QStringLiteral("visibility"),
+        QStringLiteral("word-spacing"),
+        QStringLiteral("writing-mode"),
+    };
+}} // namespace svgscene::svgspec

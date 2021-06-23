@@ -34,13 +34,13 @@
 
     /**
      * Declares logging category for a file (or another scope).
-     * Use with care in header files. Preferrably create an extra scope for it, if you use header
+     * Use with care in header files. Preferably create an extra scope for it, if you use header
      * file implementation, e.g. templates.
      */
     #define LOG_CATEGORY(NAME)                                                                     \
         static QLoggingCategory _loging_category_(NAME) // NOLINT(cert-err58-cpp)
 
-    // Logging level control is kept for the logging library to handle. This is a polyfilly for
+    // Logging level control is kept for the logging library to handle. This is a polyfill for
     // older Qt versions. The code is identical to the one in Qt5.14 but to has problems in some
     // older versions.
     #if !defined(QT_NO_QDEBUG_MACRO)

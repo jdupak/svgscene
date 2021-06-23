@@ -15,7 +15,7 @@ namespace svgscene {
  */
 class SvgGraphicsScene : public QGraphicsScene {
 protected:
-    virtual void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 };
 
 }

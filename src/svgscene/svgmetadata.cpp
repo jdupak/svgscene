@@ -36,20 +36,20 @@ CssAttributes getCssAttributes(const QGraphicsItem *element) {
     }
     return qvariant_cast<CssAttributes>(raw);
 }
-QString getCssAttribute(const QGraphicsItem *element, const QString &name) {
+QString getCssValue(const QGraphicsItem *element, const QString &attr_name) {
     CssAttributes attrs = getCssAttributes(element);
-    if (!attrs.contains(name)) {
+    if (!attrs.contains(attr_name)) {
         throw std::out_of_range(
             "Element does not contain requested XML attribute.");
     }
-    return attrs.value(name);
+    return attrs.value(attr_name);
 }
-QString getCssAttributeOr(
+QString getCssValueOr(
     const QGraphicsItem *element,
-    const QString &name,
+    const QString &attr_name,
     const QString &defaultValue) noexcept {
     CssAttributes attrs = getCssAttributes(element);
-    return attrs.value(name, defaultValue);
+    return attrs.value(attr_name, defaultValue);
 }
 
 } // namespace svgscene

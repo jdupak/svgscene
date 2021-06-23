@@ -1,4 +1,8 @@
-﻿#pragma once
+﻿/**
+ * SVG code parsing and processing.
+ */
+
+#pragma once
 
 #include "svgdocument.h"
 #include "svgmetadata.h"
@@ -19,9 +23,26 @@ class QAbstractGraphicsShapeItem;
 
 namespace svgscene {
 
+/**
+ * Entrypoint for svgscene usage taking file name.
+ *
+ * @param scene     scene where produced elements will be placed
+ * @param filename  path to a SVG file
+ * @return          an svg document, see `svgdocument.h`
+ */
 SvgDocument parseFromFileName(QGraphicsScene *scene, const QString &filename);
+
+/**
+ * Entrypoint for svgscene usage taking QFile handle.
+ *
+ * @param scene     scene where produced elements will be placed
+ * @param filename  path to a SVG file
+ * @return          an svg document, see `svgdocument.h`
+ */
 SvgDocument parseFromFile(QGraphicsScene *scene, QFile* file);
 
+// TODO: make the handler private, i.e. not exposed a in header file.
+//      The above entrypoint makes it uninteresting for library users.
 class SvgHandler {
 public:
     struct SvgElement {
@@ -90,5 +111,3 @@ private:
 };
 
 } // namespace svgscene
-
-Q_DECLARE_METATYPE(svgscene::XmlAttributes)

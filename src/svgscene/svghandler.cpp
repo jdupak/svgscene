@@ -32,6 +32,29 @@ SvgDocument parseFromFile(QGraphicsScene *scene, QFile *file) {
     return handler.getDocument();
 }
 
+static QString transform_to_string(const QTransform &t) {
+    QString s = "\n|%1\t%2\t%3|\n|%4\t%5\t%6|\n|%7\t%8\t%9|";
+    return s.arg(t.m11())
+        .arg(t.m12())
+        .arg(t.m13())
+        .arg(t.m21())
+        .arg(t.m22())
+        .arg(t.m23())
+        .arg(t.m31())
+        .arg(t.m32())
+        .arg(t.m33());
+}
+
+class TextSpansRect : public QGraphicsRectItem {
+    using Super = QGraphicsRectItem;
+
+public:
+    explicit TextSpansRect(QGraphicsItem *parent = nullptr) : Super(parent) {}
+    ~TextSpansRect() override = default;
+
+    QPointF svgPosition;
+};
+
 // see: https://www.w3.org/TR/SVG11/
 
 // '0' is 0x30 and '9' is 0x39
@@ -1105,7 +1128,6 @@ bool SvgHandler::startElement() {
             setXmlAttributes(item, el);
             qreal x = toDouble(el.xmlAttributes.value(QStringLiteral("x")));
             qreal y = toDouble(el.xmlAttributes.value(QStringLiteral("y")));
-            //            item->setPos(x, y);
             setStyle(item, el.styleAttributes);
             setTextStyle(item, el.styleAttributes);
             setTransform(

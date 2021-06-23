@@ -43,8 +43,31 @@ target_include_directories(svgscene
 target_compile_features(svgscene PUBLIC cxx_std_11)
 
 target_link_libraries(svgscene
-        PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets)
-target_include_directories(svgscene PUBLIC src PRIVATE src/svgscene)
+                      PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets)
+
+# To use Necrolog instead of Qt, add the following snippet to your CMakeLists.txt.
+#   # Necrolog build
+#
+#	add_library(necrolog STATIC)
+#	target_sources(necrolog
+#				   PRIVATE
+#				   necrolog/libnecrolog/necrolog.cpp
+#				   necrolog/libnecrolog/necrolog.h
+#				   necrolog/libnecrolog/necrologglobal.h
+#				   )
+#	target_include_directories(necrolog
+#							   PUBLIC necrolog/include)
+#
+#   # Add Necrolog to svgscene
+#
+#	target_link_libraries(svgscene
+#						  PUBLIC necrolog)
+#	target_compile_definitions(svgscene
+#							   PRIVATE
+#							   SVGSCENE_USE_EXTERNAL_LOGGER=1
+#							   SVGSCENE_USE_NECROLOG=1
+#							   )
+#
 
 add_executable(svgscene-example EXCLUDE_FROM_ALL
                src/example/main.cpp

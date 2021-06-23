@@ -15,8 +15,8 @@ QString svgscene::HyperlinkItem::getTargetName() const {
 }
 
 void HyperlinkItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
-    Q_UNUSED(event);
-    DEBUG("Link triggered (href: %s).", qPrintable(getTargetName()));
+    Q_UNUSED(event)
+    DEBUG() << "Link triggered (href: " << getTargetName() << ").";
     emit triggered();
 }
 
